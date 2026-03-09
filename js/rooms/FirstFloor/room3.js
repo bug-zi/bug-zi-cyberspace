@@ -698,41 +698,8 @@ export function createRoom3(scene, collisionSystem) {
   };
 
   // ============================================
-  // 创建沙发（加载黑色沙发.glb模型）
+  // 沙发模型已移除（腾讯云部署版本）
   // ============================================
-  console.log('🛋️ 开始加载黑色沙发模型...');
-
-  const loader = new GLTFLoader();
-  loader.load(
-    '../../public/glb/黑色沙发.glb',
-    (gltf) => {
-      console.log('✅ 黑色沙发模型加载成功！');
-      const sofa = gltf.scene;
-
-      // 调整沙发位置、缩放和旋转
-      sofa.position.set(room3X, 0, room3Z); // 房间正中央
-      sofa.scale.set(8, 8, 8); // 放大8倍
-      sofa.rotation.y = Math.PI; // 绕Y轴旋转180度，反方向放置
-      sofa.name = '沙发';
-
-      // 为沙发添加碰撞检测和交互数据
-      sofa.traverse((child) => {
-        if (child.isMesh) {
-          child.name = '沙发';
-          child.userData = { type: 'sofa', interactable: true };
-          collisionSystem.addObject(child);
-        }
-      });
-
-      scene.add(sofa);
-    },
-    (xhr) => {
-      console.log(`沙发模型加载进度: ${(xhr.loaded / xhr.total * 100).toFixed(2)}%`);
-    },
-    (error) => {
-      console.error('❌ 沙发模型加载失败:', error);
-    }
-  );
 
   // ============================================
   // 创建海报照片（前后墙门两旁）
