@@ -56,7 +56,7 @@ function init() {
     0.1,
     1000
   );
-  camera.position.set(45, 20, -50); // 初始位置：新位置（45，20，-50）
+  camera.position.set(40, 0, -40);
 
   // 3. 创建渲染器
   const container = document.getElementById('canvas-container');
