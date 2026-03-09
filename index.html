@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>走进卢浮宫 - 3D漫游</title>
+    <style>
+      /* 重置默认边距，让画布占满整个窗口 */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        overflow: hidden; /* 防止出现滚动条 */
+        font-family: "Microsoft YaHei", sans-serif;
+      }
+
+      #canvas-container {
+        width: 100vw; /* 视口宽度 */
+        height: 100vh; /* 视口高度 */
+      }
+
+      /* 操作提示层样式 */
+      #instructions {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 40px;
+        border-radius: 10px;
+        text-align: center;
+        cursor: pointer;
+        user-select: none;
+        transition: opacity 0.3s;
+      }
+
+      #instructions.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      #instructions h1 {
+        font-size: 32px;
+        margin-bottom: 20px;
+      }
+
+      #instructions p {
+        font-size: 18px;
+        line-height: 1.8;
+        margin: 10px 0;
+      }
+
+      .key {
+        display: inline-block;
+        background: #444;
+        padding: 5px 12px;
+        border-radius: 4px;
+        margin: 0 3px;
+        font-family: monospace;
+      }
+
+      /* 坐标显示 */
+      #coordinates {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 14px;
+        font-family: monospace;
+        z-index: 1000;
+      }
+
+      /* 移动模式指示器 */
+      #mode-indicator {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: all 0.3s;
+      }
+
+      #mode-indicator.sprint {
+        background: rgba(255, 100, 100, 0.7);
+        font-weight: bold;
+      }
+
+      #mode-indicator span {
+        font-size: 24px;
+      }
+
+      /* 展品信息面板 */
+      #exhibit-info {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        width: 300px;
+        background: rgba(0, 0, 0, 0.85);
+        color: white;
+        padding: 25px;
+        border-radius: 10px;
+        display: none; /* 默认隐藏 */
+        border: 2px solid #ffd700;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      }
+
+      #exhibit-info.show {
+        display: block;
+        animation: slideIn 0.3s ease-out;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateX(50px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      #exhibit-info h2 {
+        font-size: 24px;
+        margin-bottom: 15px;
+        color: #ffd700;
+        border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+        padding-bottom: 10px;
+      }
+
+      #exhibit-info p {
+        font-size: 16px;
+        line-height: 1.8;
+        margin: 10px 0;
+      }
+
+      #exhibit-info .close-btn {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 24px;
+        cursor: pointer;
+        color: #aaa;
+        transition: color 0.3s;
+      }
+
+      #exhibit-info .close-btn:hover {
+        color: #fff;
+      }
+
+      #click-hint {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 14px;
+      }
+
+      /* 鼠标准星 */
+      #crosshair {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 24px;
+        height: 24px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 1000;
+      }
+
+      #crosshair.visible {
+        opacity: 1;
+      }
+
+      #crosshair::before,
+      #crosshair::after {
+        content: "";
+        position: absolute;
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+      }
+
+      #crosshair::before {
+        width: 2px;
+        height: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+
+      #crosshair::after {
+        width: 24px;
+        height: 2px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+
+      #crosshair .center-dot {
+        position: absolute;
+        width: 6px;
+        height: 6px;
+        background: rgba(255, 215, 0, 1);
+        border-radius: 50%;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 0 5px rgba(255, 215, 0, 0.8);
+      }
+
+      /* 当悬停在可交互物体上时 */
+      #crosshair.hover::before,
+      #crosshair.hover::after {
+        background: rgba(255, 215, 0, 1);
+      }
+
+      #crosshair.hover .center-dot {
+        width: 8px;
+        height: 8px;
+        background: rgba(255, 255, 255, 1);
+      }
+
+      /* 全息投影输入框样式 */
+      #holographic-input-container {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.9);
+        padding: 30px 40px;
+        border-radius: 15px;
+        border: 2px solid #00ffff;
+        box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+        display: none;
+        z-index: 2000;
+        min-width: 400px;
+      }
+
+      #holographic-input-container.show {
+        display: flex;
+        animation: fadeIn 0.3s ease-out;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.9);
+        }
+        to {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+        }
+      }
+
+      #holographic-input-container h3 {
+        color: #00ffff;
+        font-size: 20px;
+        margin-bottom: 20px;
+        text-align: center;
+        text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+      }
+
+      #holographic-input {
+        width: 100%;
+        padding: 15px 20px;
+        font-size: 18px;
+        border: 2px solid #00ffff;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        outline: none;
+        transition: all 0.3s;
+      }
+
+      #holographic-input:focus {
+        border-color: #00ffff;
+        box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+      }
+
+      #holographic-input::placeholder {
+        color: #888;
+      }
+
+      #holographic-input-hint {
+        color: #aaa;
+        font-size: 14px;
+        margin-top: 15px;
+        text-align: center;
+      }
+
+      #holographic-input-hint .key {
+        background: #00ffff;
+        color: #000;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Three.js会在这里渲染3D画面 -->
+    <div id="canvas-container"></div>
+
+    <!-- 坐标显示 -->
+    <div id="coordinates">
+        坐标: X: 0.00, Y: 0.00, Z: 0.00
+    </div>
+
+    <!-- 移动模式指示器 -->
+    <div id="mode-indicator">
+      <span id="mode-icon">🚶</span>
+      <span id="mode-text">行走模式</span>
+    </div>
+
+    <!-- 展品信息面板 -->
+    <div id="exhibit-info">
+      <span class="close-btn">&times;</span>
+      <h2 id="exhibit-title">展品名称</h2>
+      <p id="exhibit-description">展品描述信息</p>
+    </div>
+
+    <!-- 点击提示 -->
+    <div id="click-hint">💡 点击展品查看详情</div>
+
+    <!-- 鼠标准星 -->
+    <div id="crosshair">
+      <div class="center-dot"></div>
+    </div>
+
+    <!-- 全息投影输入框 -->
+    <div id="holographic-input-container">
+        <h3>🎨 请输入要生成的物体名称</h3>
+        <input type="text" id="holographic-input" placeholder="例如：猫、狗、鸟、心、星..." autocomplete="off">
+        <p id="holographic-input-hint">按 <span class="key">Enter</span> 确认 | 按 <span class="key">Esc</span> 取消</p>
+    </div>
+
+    <!-- 操作提示层 -->
+    <div id="instructions">
+        <h1>🏛️ 走进卢浮宫</h1>
+        <p>探索虚拟艺术展厅</p>
+        <p style="margin-top: 20px;">
+            <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> 移动
+            &nbsp;|&nbsp;
+            <span class="key">SHIFT</span> 切换跑/走
+            &nbsp;|&nbsp;
+            <span class="key">SPACE</span> 跳跃
+        </p>
+        <p>移动鼠标控制视角 | <span class="key">ESC</span> 退出</p>
+        <p style="margin-top: 15px; font-size: 14px; color: #ffd700;">
+            🖱️ 点击展品查看详细信息
+        </p>
+        <p style="margin-top: 10px; font-size: 13px; color: #aaa;">
+            ✨ 5幅艺术画作 + 2件雕塑 + 玻璃金字塔
+        </p>
+    </div>
+
+    <!-- 引入我们的主脚本 -->
+    <script type="module" src="./js/main-new.js"></script>
+  </body>
+</html>

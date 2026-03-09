@@ -1,0 +1,17 @@
+{
+  "name": "bug_zi_cyberspace",
+  "version": "1.0.0",
+  "description": "bug子的赛博空间,基于Three.js开发",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
