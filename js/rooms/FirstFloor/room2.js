@@ -3,7 +3,6 @@
 // ============================================
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CONFIG } from '../../config.js';
 import { createFloor, createWall, createDoorWall, createPainting } from '../../utils.js';
 
@@ -540,16 +539,11 @@ export function createMusicHall(scene, collisionSystem) {
 
   return {
     roomName: '音乐馆',
-    playCanon: playCanon,
-    stopCanon: stopCanon,
     checkPlayerInRoom2: checkPlayerInRoom2,
-    updateNotes: updateNotes,
-    spawnNotes: spawnNotes,
     playAlbum: (index) => {
       console.log('🎵 点击专辑', index + 1, '当前播放状态:', albumPlaying[index]);
 
       if (!albumPlaying[index]) {
-        stopCanon();
         for (let i = 0; i < 4; i++) {
           if (i !== index && albumPlaying[i] && albumAudios[i]) {
             albumPlaying[i] = false;

@@ -1,9 +1,8 @@
 // ============================================ 第二层展厅4 ============================================
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CONFIG } from '../../config.js';
-import { createMarbleFloorTexture, createLuxuryWallTexture } from '../../utils.js';
+import { createFloor, createWall, createDoorWall, createPainting } from '../../utils.js';
 
 /**
  * 创建第二层展厅4

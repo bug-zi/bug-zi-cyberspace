@@ -4,7 +4,6 @@
 
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CONFIG } from './config.js';
 import { PlayerController } from './player.js';
 import { Renderer } from './renderer.js';
@@ -32,12 +31,6 @@ let holographicInputContainer, holographicInput, holographicInputCallback = null
 
 // 坐标显示元素
 let coordinatesElement;
-
-// 坐下状态管理
-let isSittingOnSofa = false;
-let sittingPosition = new THREE.Vector3(90, 1.5, 0); // 沙发位置
-let sittingTarget = new THREE.Vector3(75, 4, 0); // 投影屏幕位置
-let standingPosition = new THREE.Vector3(); // 站立时的位置（用于恢复）
 
 /**
  * 初始化应用
@@ -265,19 +258,9 @@ function animate() {
   // 更新玩家移动
   player.update(delta);
 
-  // 检测玩家是否在room2内，自动播放/停止canon
+  // 检测玩家是否在room2内
   if (musicHallInfo && musicHallInfo.checkPlayerInRoom2) {
     musicHallInfo.checkPlayerInRoom2(camera.position);
-  }
-
-  // 更新room2音符动画
-  if (musicHallInfo && musicHallInfo.updateNotes) {
-    musicHallInfo.updateNotes();
-  }
-
-  // 生成room2音符
-  if (musicHallInfo && musicHallInfo.spawnNotes) {
-    musicHallInfo.spawnNotes(Date.now());
   }
 
   // 更新room3星星地板交互效果
@@ -382,14 +365,6 @@ document.addEventListener('click', (event) => {
 
     // 如果找到了有信息的展品
     if (target && target.name) {
-      // 处理钢琴点击
-      if (target.name.includes('钢琴')) {
-        console.log('🎹 点击了钢琴');
-        if (musicHallInfo && musicHallInfo.playCanon) {
-          musicHallInfo.playCanon();
-        }
-      }
-
       // 处理专辑点击
       if (target.name.includes('专辑')) {
         console.log('💿 点击了专辑，索引:', target.userData ? target.userData.index : '未定义');
@@ -454,42 +429,6 @@ document.addEventListener('click', (event) => {
             camera.position.set(45, 1.6, 0);
             elevatorInfo.currentFloor = 1;
             console.log('✅ 已返回第一层');
-          }
-        }
-      }
-
-      // 处理沙发点击（坐下/站起来）
-      if (target.name === '沙发' || (target.userData && target.userData.type === 'sofa')) {
-        console.log('🛋️ 点击了沙发');
-        if (isSittingOnSofa) {
-          // 站起来
-          console.log('🚶 从沙发上站起来');
-          camera.position.copy(standingPosition);
-          isSittingOnSofa = false;
-          // 恢复玩家控制
-          if (player) {
-            player.enabled = true;
-          }
-          // 恢复鼠标控制
-          if (controls) {
-            controls.enabled = true;
-          }
-        } else {
-          // 保存当前位置
-          standingPosition.copy(camera.position);
-          // 坐下
-          console.log('🪑 坐到沙发上');
-          camera.position.copy(sittingPosition);
-          // 看向投影屏幕
-          camera.lookAt(sittingTarget);
-          isSittingOnSofa = true;
-          // 禁用玩家移动控制
-          if (player) {
-            player.enabled = false;
-          }
-          // 禁用鼠标控制视角
-          if (controls) {
-            controls.enabled = false;
           }
         }
       }
@@ -568,21 +507,6 @@ closeBtn.addEventListener('click', () => {
 document.addEventListener('keydown', (event) => {
   if (event.code === 'Escape' && exhibitInfo.classList.contains('show')) {
     exhibitInfo.classList.remove('show');
-  }
-
-  // 按E键从沙发上站起来
-  if (event.code === 'KeyE' && isSittingOnSofa) {
-    console.log('🚶 按E键从沙发上站起来');
-    camera.position.copy(standingPosition);
-    isSittingOnSofa = false;
-    // 恢复玩家控制
-    if (player) {
-      player.enabled = true;
-    }
-    // 恢复鼠标控制
-    if (controls) {
-      controls.enabled = true;
-    }
   }
 });
 

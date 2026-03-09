@@ -3,7 +3,6 @@
 // ============================================
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CONFIG } from '../../config.js';
 import { createFloor, createWall, createDoorWall, createPainting, createMarbleFloorTexture, createLuxuryWallTexture } from '../../utils.js';
 
