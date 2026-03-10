@@ -56,7 +56,7 @@ function init() {
     0.1,
     1000
   );
-  camera.position.set(45, 20, -50); // 初始位置：新位置（45，20，-50）
+  camera.position.set(34, 1.6, 45); // 初始位置
 
   // 3. 创建渲染器
   const container = document.getElementById('canvas-container');
@@ -385,8 +385,14 @@ document.addEventListener('click', (event) => {
       // 处理钢琴点击
       if (target.name.includes('钢琴')) {
         console.log('🎹 点击了钢琴');
-        if (musicHallInfo && musicHallInfo.playCanon) {
-          musicHallInfo.playCanon();
+        if (musicHallInfo && musicHallInfo.sitAtPiano) {
+          // 只有在没有弹奏时才能点击坐下
+          if (!musicHallInfo.isSittingAtPiano || !musicHallInfo.isSittingAtPiano()) {
+            // 坐下弹奏
+            console.log('🎹 坐到钢琴前');
+            musicHallInfo.sitAtPiano(camera, controls, player);
+          }
+          // 如果已经在弹奏，只能通过 E 键离开，不能通过点击离开
         }
       }
 
@@ -552,11 +558,23 @@ document.addEventListener('click', (event) => {
 });
 
 // 显示展品信息
+let exhibitInfoTimeout = null;
+
 function showExhibitInfo(info) {
+  // 清除之前的定时器
+  if (exhibitInfoTimeout) {
+    clearTimeout(exhibitInfoTimeout);
+  }
+
   const lines = info.split('\n');
   exhibitTitle.textContent = lines[0];
   exhibitDescription.textContent = lines.slice(1).join('\n');
   exhibitInfo.classList.add('show');
+
+  // 3秒后自动隐藏
+  exhibitInfoTimeout = setTimeout(() => {
+    exhibitInfo.classList.remove('show');
+  }, 3000);
 }
 
 // 关闭信息面板
@@ -652,6 +670,11 @@ async function startApp() {
 
   // 创建第二层
   const secondFloorInfo = createSecondFloor(scene, collisionSystem);
+  
+  // 更新电梯信息以包含第二层电梯
+  if (secondFloorInfo && secondFloorInfo.elevatorGroup) {
+    elevatorInfo.elevatorGroup = secondFloorInfo.elevatorGroup;
+  }
 
   console.log('🎉 所有房间创建完成！');
   console.log('📊 场景统计：');

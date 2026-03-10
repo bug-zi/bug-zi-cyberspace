@@ -103,6 +103,12 @@ export function createSecondFloorElevatorHall(scene, collisionSystem, wallMateri
   elevatorGroup.add(button2);
 
   elevatorGroup.position.set(centerX, floorY, centerZ);
+  elevatorGroup.name = '第二层电梯\n点击返回第一层';
+  elevatorGroup.userData = { 
+    type: 'elevator',
+    floor: 2,
+    targetFloor: 1
+  };
   scene.add(elevatorGroup);
 
   console.log('✅ 第二层电梯厅已创建');

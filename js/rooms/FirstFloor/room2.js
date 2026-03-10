@@ -313,6 +313,13 @@ export function createMusicHall(scene, collisionSystem) {
   let piano = null;
   let canonAudio = null;
   let isCanonPlaying = false;
+  let isSittingAtPiano = false;
+  let standingPosition = new THREE.Vector3();
+  let standingRotation = new THREE.Euler();
+
+  // 钢琴座椅位置（钢琴右侧，顺时针旋转90°）
+  const pianoSeatPosition = new THREE.Vector3(43.26, 1.6, 44.95);
+  const pianoSeatTarget = new THREE.Vector3(43.26, 1.2, 44.95); // 看向钢琴琴键
 
   const loader = new GLTFLoader();
   loader.load(
@@ -327,16 +334,14 @@ export function createMusicHall(scene, collisionSystem) {
       // 为钢琴模型的所有子对象设置name属性
       piano.traverse((child) => {
         if (child.isMesh) {
-          child.name = '钢琴\n点击播放卡农';
+          child.name = '钢琴';
         }
       });
 
       scene.add(piano);
       collisionSystem.addObject(piano);
-      piano.name = '钢琴\n点击播放卡农';
+      piano.name = '钢琴';
       console.log('🎹 钢琴已添加到场景');
-
-      // playCanon(); // 暂时关闭自动播放
     },
     (progress) => {
       const percent = (progress.loaded / progress.total * 100).toFixed(2) + '%';
@@ -346,6 +351,113 @@ export function createMusicHall(scene, collisionSystem) {
       console.error('❌ 钢琴模型加载失败:', error);
     }
   );
+
+  // 钢琴音符音频映射 (A-L 对应 C4-E5)
+  const pianoNotes = {
+    'a': { note: 'C4', freq: 261.63 },
+    's': { note: 'D4', freq: 293.66 },
+    'd': { note: 'E4', freq: 329.63 },
+    'f': { note: 'F4', freq: 349.23 },
+    'g': { note: 'G4', freq: 392.00 },
+    'h': { note: 'A4', freq: 440.00 },
+    'j': { note: 'B4', freq: 493.88 },
+    'k': { note: 'C5', freq: 523.25 },
+    'l': { note: 'D5', freq: 587.33 },
+    ';': { note: 'E5', freq: 659.25 }
+  };
+
+  // 播放钢琴音符
+  function playPianoNote(key) {
+    const noteData = pianoNotes[key.toLowerCase()];
+    if (!noteData) return;
+
+    // 创建音频上下文播放音符
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.frequency.value = noteData.freq;
+    oscillator.type = 'sine';
+
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.5);
+
+    console.log(`🎹 弹奏音符: ${noteData.note} (${key})`);
+
+    // 创建音符视觉效果
+    createPianoNoteEffect(noteData.note);
+  }
+
+  // 创建钢琴音符视觉效果
+  function createPianoNoteEffect(noteName) {
+    const noteGroup = new THREE.Group();
+
+    // 音符主体（黑色椭圆）
+    const noteGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+    const noteMaterial = new THREE.MeshStandardMaterial({
+      color: 0x000000,
+      roughness: 0.8,
+      metalness: 0.1
+    });
+    const note = new THREE.Mesh(noteGeometry, noteMaterial);
+    note.scale.set(1, 0.6, 0.3);
+    noteGroup.add(note);
+
+    // 音符杆
+    const stemGeometry = new THREE.BoxGeometry(0.05, 0.8, 0.05);
+    const stem = new THREE.Mesh(stemGeometry, noteMaterial);
+    stem.position.set(0, 0.4, 0);
+    noteGroup.add(stem);
+
+    // 随机位置（钢琴上方）
+    noteGroup.position.set(
+      room2X + (Math.random() - 0.5) * 4,
+      2 + Math.random() * 2,
+      room2Z + 4 + Math.random() * 2
+    );
+
+    // 存储音符数据（2秒后消失，decay = 1.0 / (2s * 60fps) ≈ 0.0083）
+    noteGroup.userData = {
+      velocity: new THREE.Vector3(
+        (Math.random() - 0.5) * 0.02,
+        0.02 + Math.random() * 0.02,
+        (Math.random() - 0.5) * 0.02
+      ),
+      life: 1.0,
+      decay: 0.0083
+    };
+
+    scene.add(noteGroup);
+    pianoNotesArray.push(noteGroup);
+  }
+
+  // 更新钢琴音符动画
+  const pianoNotesArray = [];
+  function updatePianoNotes() {
+    for (let i = pianoNotesArray.length - 1; i >= 0; i--) {
+      const note = pianoNotesArray[i];
+      note.position.add(note.userData.velocity);
+      note.userData.life -= note.userData.decay;
+      note.scale.setScalar(note.userData.life);
+
+      if (note.userData.life <= 0) {
+        scene.remove(note);
+        pianoNotesArray.splice(i, 1);
+      }
+    }
+  }
+
+  // 合并更新所有音符（卡农音符 + 钢琴弹奏音符）
+  function updateAllNotes() {
+    updateNotes();      // 更新卡农自动播放的音符
+    updatePianoNotes(); // 更新钢琴弹奏的音符
+  }
 
   function playCanon() {
     if (!isCanonPlaying) {
@@ -381,6 +493,193 @@ export function createMusicHall(scene, collisionSystem) {
       canonAudio.pause();
       canonAudio.currentTime = 0;
     }
+  }
+
+  // 坐下弹奏钢琴
+  let wasPlayingMusicBeforeSitting = false;
+  let playingAlbumIndex = -1;
+  let pianoCamera = null;
+  let pianoControls = null;
+  let pianoPlayer = null;
+
+  function sitAtPiano(camera, controls, player) {
+    if (isSittingAtPiano) return;
+
+    console.log('🎹 坐到钢琴前');
+    isSittingAtPiano = true;
+
+    // 保存相机、控制和玩家引用
+    pianoCamera = camera;
+    pianoControls = controls;
+    pianoPlayer = player;
+
+    // 保存当前位置和旋转
+    standingPosition.copy(camera.position);
+    standingRotation.copy(camera.rotation);
+
+    // 移动相机到座椅位置
+    camera.position.copy(pianoSeatPosition);
+    camera.lookAt(pianoSeatTarget);
+
+    // 禁用玩家控制
+    if (player) player.enabled = false;
+    if (controls) controls.enabled = false;
+
+    // 记录坐下前是否在播放音乐
+    wasPlayingMusicBeforeSitting = false;
+    playingAlbumIndex = -1;
+
+    // 停止所有正在播放的专辑音乐
+    for (let i = 0; i < 4; i++) {
+      if (albumPlaying[i]) {
+        wasPlayingMusicBeforeSitting = true;
+        playingAlbumIndex = i;
+        console.log(`🎵 坐下前正在播放专辑${i + 1}，暂停播放`);
+        if (albumAudios[i]) {
+          albumAudios[i].pause();
+        }
+        albumPlaying[i] = false;
+        break;
+      }
+    }
+
+    // 停止正在播放的卡农
+    if (isCanonPlaying) {
+      if (!wasPlayingMusicBeforeSitting) {
+        wasPlayingMusicBeforeSitting = true;
+      }
+      console.log('🎵 坐下前正在播放卡农，暂停播放');
+      stopCanon();
+    }
+
+    // 添加键盘事件监听
+    document.addEventListener('keydown', handlePianoKeyDown);
+    document.addEventListener('keyup', handlePianoKeyUp);
+
+    // 显示键位说明面板
+    showPianoGuide();
+
+    console.log('🎹 现在可以弹奏钢琴了！使用键位 A-L 对应 C4-E5');
+    console.log('⌨️ 按 E 键离开钢琴');
+  }
+
+  // 显示钢琴键位说明面板
+  function showPianoGuide() {
+    // 如果已存在则先移除
+    hidePianoGuide();
+
+    const guideDiv = document.createElement('div');
+    guideDiv.id = 'piano-guide';
+    guideDiv.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      font-family: 'Microsoft YaHei', sans-serif;
+      font-size: 14px;
+      z-index: 1000;
+      min-width: 200px;
+      border: 2px solid #d4af37;
+    `;
+
+    guideDiv.innerHTML = `
+      <h3 style="margin: 0 0 15px 0; color: #d4af37; font-size: 18px;">🎹 钢琴键位说明</h3>
+      <div style="line-height: 1.8;">
+        <div><span style="color: #ffd700; font-weight: bold;">A</span> - C4 (Do)</div>
+        <div><span style="color: #ffd700; font-weight: bold;">S</span> - D4 (Re)</div>
+        <div><span style="color: #ffd700; font-weight: bold;">D</span> - E4 (Mi)</div>
+        <div><span style="color: #ffd700; font-weight: bold;">F</span> - F4 (Fa)</div>
+        <div><span style="color: #ffd700; font-weight: bold;">G</span> - G4 (Sol)</div>
+        <div><span style="color: #ffd700; font-weight: bold;">H</span> - A4 (La)</div>
+        <div><span style="color: #ffd700; font-weight: bold;">J</span> - B4 (Si)</div>
+        <div><span style="color: #ffd700; font-weight: bold;">K</span> - C5 (Do)</div>
+        <div><span style="color: #ffd700; font-weight: bold;">L</span> - D5 (Re)</div>
+        <div><span style="color: #ffd700; font-weight: bold;">;</span> - E5 (Mi)</div>
+      </div>
+      <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #666; color: #aaa; font-size: 12px;">
+        按 <span style="color: #ffd700; font-weight: bold;">E</span> 键离开钢琴
+      </div>
+    `;
+
+    document.body.appendChild(guideDiv);
+    console.log('📖 显示钢琴键位说明');
+  }
+
+  // 隐藏钢琴键位说明面板
+  function hidePianoGuide() {
+    const existingGuide = document.getElementById('piano-guide');
+    if (existingGuide) {
+      existingGuide.remove();
+      console.log('📖 隐藏钢琴键位说明');
+    }
+  }
+
+  // 站起来离开钢琴
+  function standUpFromPiano(camera, controls, player) {
+    if (!isSittingAtPiano) return;
+
+    console.log('🚶 离开钢琴');
+    isSittingAtPiano = false;
+
+    // 隐藏键位说明面板
+    hidePianoGuide();
+
+    // 恢复相机位置
+    camera.position.copy(standingPosition);
+    camera.rotation.copy(standingRotation);
+
+    // 恢复玩家控制
+    if (player) player.enabled = true;
+    if (controls) controls.enabled = true;
+
+    // 停止播放卡农
+    stopCanon();
+
+    // 如果坐下前有音乐播放，恢复播放
+    if (wasPlayingMusicBeforeSitting) {
+      if (playingAlbumIndex >= 0) {
+        console.log(`🎵 恢复播放专辑${playingAlbumIndex + 1}`);
+        albumPlaying[playingAlbumIndex] = true;
+        if (albumAudios[playingAlbumIndex]) {
+          albumAudios[playingAlbumIndex].play().catch(err => {
+            console.error('❌ 恢复专辑播放失败:', err);
+            albumPlaying[playingAlbumIndex] = false;
+          });
+        }
+      } else {
+        console.log('🎵 恢复播放卡农');
+        playCanon();
+      }
+      wasPlayingMusicBeforeSitting = false;
+      playingAlbumIndex = -1;
+    }
+
+    // 移除键盘事件监听
+    document.removeEventListener('keydown', handlePianoKeyDown);
+    document.removeEventListener('keyup', handlePianoKeyUp);
+  }
+
+  // 处理钢琴键盘按下
+  function handlePianoKeyDown(event) {
+    if (!isSittingAtPiano) return;
+
+    // 按 E 键离开钢琴
+    if (event.key.toLowerCase() === 'e') {
+      console.log('⌨️ 按下了 E 键，准备离开钢琴');
+      console.log('🎹 pianoCamera:', pianoCamera, 'pianoControls:', pianoControls, 'pianoPlayer:', pianoPlayer);
+      standUpFromPiano(pianoCamera, pianoControls, pianoPlayer);
+      return;
+    }
+
+    playPianoNote(event.key);
+  }
+
+  // 处理钢琴键盘释放
+  function handlePianoKeyUp(event) {
+    // 可以在这里添加音符释放效果
   }
 
   // ============================================
@@ -450,7 +749,7 @@ export function createMusicHall(scene, collisionSystem) {
     return noteGroup;
   }
 
-  // 更新音符动画
+  // 更新音符动画（卡农自动播放的音符）
   function updateNotes() {
     for (let i = notes.length - 1; i >= 0; i--) {
       const note = notes[i];
@@ -777,11 +1076,32 @@ export function createMusicHall(scene, collisionSystem) {
       playerPosition.y <= 10;
 
     if (inRoom2 && !wasInRoom2) {
-      console.log('🎵 进入音乐馆，开始播放卡农');
-      playCanon();
+      // 只有在没有播放专辑且没有弹奏钢琴时才播放卡农
+      let isAnyAlbumPlaying = false;
+      for (let i = 0; i < 4; i++) {
+        if (albumPlaying[i]) {
+          isAnyAlbumPlaying = true;
+          break;
+        }
+      }
+      
+      if (!isAnyAlbumPlaying && !isSittingAtPiano) {
+        console.log('🎵 进入音乐馆，开始播放卡农');
+        playCanon();
+      }
     } else if (!inRoom2 && wasInRoom2) {
-      console.log('🛑 离开音乐馆，停止播放卡农');
+      console.log('🛑 离开音乐馆，停止所有音乐');
+      // 停止卡农
       stopCanon();
+      // 停止所有专辑音乐
+      for (let i = 0; i < 4; i++) {
+        if (albumPlaying[i] && albumAudios[i]) {
+          albumPlaying[i] = false;
+          albumAudios[i].pause();
+          albumAudios[i].currentTime = 0;
+          console.log(`🛑 停止专辑${i + 1}`);
+        }
+      }
     }
 
     wasInRoom2 = inRoom2;
@@ -793,12 +1113,16 @@ export function createMusicHall(scene, collisionSystem) {
     playCanon: playCanon,
     stopCanon: stopCanon,
     checkPlayerInRoom2: checkPlayerInRoom2,
-    updateNotes: updateNotes,
+    updateNotes: updateAllNotes,
     spawnNotes: spawnNotes,
+    sitAtPiano: sitAtPiano,
+    standUpFromPiano: standUpFromPiano,
+    isSittingAtPiano: () => isSittingAtPiano,
     playAlbum: (index) => {
       console.log('🎵 点击专辑', index + 1, '当前播放状态:', albumPlaying[index]);
 
       if (!albumPlaying[index]) {
+        // 第一次点击：停止卡农，播放专辑
         stopCanon();
         for (let i = 0; i < 4; i++) {
           if (i !== index && albumPlaying[i] && albumAudios[i]) {
@@ -826,12 +1150,15 @@ export function createMusicHall(scene, collisionSystem) {
           albumPlaying[index] = false;
         }
       } else {
-        console.log('🛑 暂停专辑', index + 1);
+        // 再次点击：停止专辑，恢复播放卡农
+        console.log('🛑 暂停专辑', index + 1, '，恢复播放卡农');
         albumPlaying[index] = false;
         if (albumAudios[index]) {
           albumAudios[index].pause();
           albumAudios[index].currentTime = 0;
         }
+        // 恢复播放卡农
+        playCanon();
       }
     }
   };
