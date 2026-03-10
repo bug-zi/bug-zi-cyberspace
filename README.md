@@ -2,6 +2,8 @@
 
 一个基于 Three.js 开发的沉浸式 3D 虚拟空间，支持第一人称漫游、多楼层探索、展品交互等功能。
 
+![项目截图](.\public\photo\项目展示图1.png)
+
 ![Three.js](https://img.shields.io/badge/Three.js-r160-blue)
 ![Vite](https://img.shields.io/badge/Vite-v5.0-purple)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -120,7 +122,7 @@ bug_zi_cyberspace/
     └── voice/                # 音频资源
 ```
 
-## �️ 技术栈
+## 🛠️ 技术栈
 
 - **[Three.js](https://threejs.org/)** - 3D 渲染引擎
 - **[Vite](https://vitejs.dev/)** - 前端构建工具
